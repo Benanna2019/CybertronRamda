@@ -543,6 +543,13 @@
       };
     }
 
+    function _reduced(x) {
+      return x && x['@@transducer/reduced'] ? x : {
+        '@@transducer/value': x,
+        '@@transducer/reduced': true
+      };
+    }
+
     var _xfBase = {
       init: function () {
         return this.xf['@@transducer/init']();
@@ -917,52 +924,35 @@
     });
 
     /**
-     * Returns a single item by iterating through the list, successively calling
-     * the iterator function and passing it an accumulator value and the current
-     * value from the array, and then passing the result to the next call.
+     * Returns a new list by plucking the same named property off all objects in
+     * the list supplied.
      *
-     * The iterator function receives two values: *(acc, value)*. It may use
-     * [`R.reduced`](#reduced) to shortcut the iteration.
-     *
-     * The arguments' order of [`reduceRight`](#reduceRight)'s iterator function
-     * is *(value, acc)*.
-     *
-     * Note: `R.reduce` does not skip deleted or unassigned indices (sparse
-     * arrays), unlike the native `Array.prototype.reduce` method. For more details
-     * on this behavior, see:
-     * https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/reduce#Description
-     *
-     * Dispatches to the `reduce` method of the third argument, if present. When
-     * doing so, it is up to the user to handle the [`R.reduced`](#reduced)
-     * shortcuting, as this is not implemented by `reduce`.
+     * `pluck` will work on
+     * any [functor](https://github.com/fantasyland/fantasy-land#functor) in
+     * addition to arrays, as it is equivalent to `R.map(R.prop(k), f)`.
      *
      * @func
      * @memberOf R
      * @since v0.1.0
      * @category List
-     * @sig ((a, b) -> a) -> a -> [b] -> a
-     * @param {Function} fn The iterator function. Receives two values, the accumulator and the
-     *        current element from the array.
-     * @param {*} acc The accumulator value.
-     * @param {Array} list The list to iterate over.
-     * @return {*} The final, accumulated value.
-     * @see R.reduced, R.addIndex, R.reduceRight
+     * @sig Functor f => k -> f {k: v} -> f v
+     * @param {Number|String} key The key name to pluck off of each object.
+     * @param {Array} f The array or functor to consider.
+     * @return {Array} The list of values for the given key.
+     * @see R.props
      * @example
      *
-     *      R.reduce(R.subtract, 0, [1, 2, 3, 4]) // => ((((0 - 1) - 2) - 3) - 4) = -10
-     *      //          -               -10
-     *      //         / \              / \
-     *      //        -   4           -6   4
-     *      //       / \              / \
-     *      //      -   3   ==>     -3   3
-     *      //     / \              / \
-     *      //    -   2           -1   2
-     *      //   / \              / \
-     *      //  0   1            0   1
+     *      var getAges = R.pluck('age');
+     *      getAges([{name: 'fred', age: 29}, {name: 'wilma', age: 27}]); //=> [29, 27]
      *
-     * @symb R.reduce(f, a, [b, c, d]) = f(f(f(a, b), c), d)
+     *      R.pluck(0, [[1, 2], [3, 4]]);               //=> [1, 3]
+     *      R.pluck('val', {a: {val: 3}, b: {val: 5}}); //=> {a: 3, b: 5}
+     * @symb R.pluck('x', [{x: 1, y: 2}, {x: 3, y: 4}, {x: 5, y: 6}]) = [1, 3, 5]
+     * @symb R.pluck(0, [[1, 2], [3, 4], [5, 6]]) = [1, 3, 5]
      */
-    var reduce = /*#__PURE__*/_curry3(_reduce);
+    var pluck = /*#__PURE__*/_curry2(function pluck(p, list) {
+      return map(prop(p), list);
+    });
 
     /**
      * Gives a single-word string description of the (native) type of a value,
@@ -992,179 +982,6 @@
     var type = /*#__PURE__*/_curry1(function type(val) {
       return val === null ? 'Null' : val === undefined ? 'Undefined' : Object.prototype.toString.call(val).slice(8, -1);
     });
-
-    function _pipe(f, g) {
-      return function () {
-        return g.call(this, f.apply(this, arguments));
-      };
-    }
-
-    /**
-     * This checks whether a function has a [methodname] function. If it isn't an
-     * array it will execute that function otherwise it will default to the ramda
-     * implementation.
-     *
-     * @private
-     * @param {Function} fn ramda implemtation
-     * @param {String} methodname property to check for a custom implementation
-     * @return {Object} Whatever the return value of the method is.
-     */
-    function _checkForMethod(methodname, fn) {
-      return function () {
-        var length = arguments.length;
-        if (length === 0) {
-          return fn();
-        }
-        var obj = arguments[length - 1];
-        return _isArray(obj) || typeof obj[methodname] !== 'function' ? fn.apply(this, arguments) : obj[methodname].apply(obj, Array.prototype.slice.call(arguments, 0, length - 1));
-      };
-    }
-
-    /**
-     * Returns the elements of the given list or string (or object with a `slice`
-     * method) from `fromIndex` (inclusive) to `toIndex` (exclusive).
-     *
-     * Dispatches to the `slice` method of the third argument, if present.
-     *
-     * @func
-     * @memberOf R
-     * @since v0.1.4
-     * @category List
-     * @sig Number -> Number -> [a] -> [a]
-     * @sig Number -> Number -> String -> String
-     * @param {Number} fromIndex The start index (inclusive).
-     * @param {Number} toIndex The end index (exclusive).
-     * @param {*} list
-     * @return {*}
-     * @example
-     *
-     *      R.slice(1, 3, ['a', 'b', 'c', 'd']);        //=> ['b', 'c']
-     *      R.slice(1, Infinity, ['a', 'b', 'c', 'd']); //=> ['b', 'c', 'd']
-     *      R.slice(0, -1, ['a', 'b', 'c', 'd']);       //=> ['a', 'b', 'c']
-     *      R.slice(-3, -1, ['a', 'b', 'c', 'd']);      //=> ['b', 'c']
-     *      R.slice(0, 3, 'ramda');                     //=> 'ram'
-     */
-    var slice = /*#__PURE__*/_curry3( /*#__PURE__*/_checkForMethod('slice', function slice(fromIndex, toIndex, list) {
-      return Array.prototype.slice.call(list, fromIndex, toIndex);
-    }));
-
-    /**
-     * Returns all but the first element of the given list or string (or object
-     * with a `tail` method).
-     *
-     * Dispatches to the `slice` method of the first argument, if present.
-     *
-     * @func
-     * @memberOf R
-     * @since v0.1.0
-     * @category List
-     * @sig [a] -> [a]
-     * @sig String -> String
-     * @param {*} list
-     * @return {*}
-     * @see R.head, R.init, R.last
-     * @example
-     *
-     *      R.tail([1, 2, 3]);  //=> [2, 3]
-     *      R.tail([1, 2]);     //=> [2]
-     *      R.tail([1]);        //=> []
-     *      R.tail([]);         //=> []
-     *
-     *      R.tail('abc');  //=> 'bc'
-     *      R.tail('ab');   //=> 'b'
-     *      R.tail('a');    //=> ''
-     *      R.tail('');     //=> ''
-     */
-    var tail = /*#__PURE__*/_curry1( /*#__PURE__*/_checkForMethod('tail', /*#__PURE__*/slice(1, Infinity)));
-
-    /**
-     * Performs left-to-right function composition. The leftmost function may have
-     * any arity; the remaining functions must be unary.
-     *
-     * In some libraries this function is named `sequence`.
-     *
-     * **Note:** The result of pipe is not automatically curried.
-     *
-     * @func
-     * @memberOf R
-     * @since v0.1.0
-     * @category Function
-     * @sig (((a, b, ..., n) -> o), (o -> p), ..., (x -> y), (y -> z)) -> ((a, b, ..., n) -> z)
-     * @param {...Function} functions
-     * @return {Function}
-     * @see R.compose
-     * @example
-     *
-     *      const f = R.pipe(Math.pow, R.negate, R.inc);
-     *
-     *      f(3, 4); // -(3^4) + 1
-     * @symb R.pipe(f, g, h)(a, b) = h(g(f(a, b)))
-     */
-    function pipe() {
-      if (arguments.length === 0) {
-        throw new Error('pipe requires at least one argument');
-      }
-      return _arity(arguments[0].length, reduce(_pipe, arguments[0], tail(arguments)));
-    }
-
-    /**
-     * Returns a new list or string with the elements or characters in reverse
-     * order.
-     *
-     * @func
-     * @memberOf R
-     * @since v0.1.0
-     * @category List
-     * @sig [a] -> [a]
-     * @sig String -> String
-     * @param {Array|String} list
-     * @return {Array|String}
-     * @example
-     *
-     *      R.reverse([1, 2, 3]);  //=> [3, 2, 1]
-     *      R.reverse([1, 2]);     //=> [2, 1]
-     *      R.reverse([1]);        //=> [1]
-     *      R.reverse([]);         //=> []
-     *
-     *      R.reverse('abc');      //=> 'cba'
-     *      R.reverse('ab');       //=> 'ba'
-     *      R.reverse('a');        //=> 'a'
-     *      R.reverse('');         //=> ''
-     */
-    var reverse = /*#__PURE__*/_curry1(function reverse(list) {
-      return _isString(list) ? list.split('').reverse().join('') : Array.prototype.slice.call(list, 0).reverse();
-    });
-
-    /**
-     * Performs right-to-left function composition. The rightmost function may have
-     * any arity; the remaining functions must be unary.
-     *
-     * **Note:** The result of compose is not automatically curried.
-     *
-     * @func
-     * @memberOf R
-     * @since v0.1.0
-     * @category Function
-     * @sig ((y -> z), (x -> y), ..., (o -> p), ((a, b, ..., n) -> o)) -> ((a, b, ..., n) -> z)
-     * @param {...Function} ...functions The functions to compose
-     * @return {Function}
-     * @see R.pipe
-     * @example
-     *
-     *      const classyGreeting = (firstName, lastName) => "The name's " + lastName + ", " + firstName + " " + lastName
-     *      const yellGreeting = R.compose(R.toUpper, classyGreeting);
-     *      yellGreeting('James', 'Bond'); //=> "THE NAME'S BOND, JAMES BOND"
-     *
-     *      R.compose(Math.abs, R.add(1), R.multiply(2))(-4) //=> 7
-     *
-     * @symb R.compose(f, g, h)(a, b) = f(g(h(a, b)))
-     */
-    function compose() {
-      if (arguments.length === 0) {
-        throw new Error('compose requires at least one argument');
-      }
-      return pipe.apply(this, reverse(arguments));
-    }
 
     function _arrayFromIterator(iter) {
       var list = [];
@@ -1380,49 +1197,147 @@
       return _equals(a, b, [], []);
     });
 
-    function _filter(fn, list) {
-      var idx = 0;
-      var len = list.length;
-      var result = [];
+    function _indexOf(list, a, idx) {
+      var inf, item;
+      // Array.prototype.indexOf doesn't exist below IE9
+      if (typeof list.indexOf === 'function') {
+        switch (typeof a) {
+          case 'number':
+            if (a === 0) {
+              // manually crawl the list to distinguish between +0 and -0
+              inf = 1 / a;
+              while (idx < list.length) {
+                item = list[idx];
+                if (item === 0 && 1 / item === inf) {
+                  return idx;
+                }
+                idx += 1;
+              }
+              return -1;
+            } else if (a !== a) {
+              // NaN
+              while (idx < list.length) {
+                item = list[idx];
+                if (typeof item === 'number' && item !== item) {
+                  return idx;
+                }
+                idx += 1;
+              }
+              return -1;
+            }
+            // non-zero numbers can utilise Set
+            return list.indexOf(a, idx);
 
-      while (idx < len) {
-        if (fn(list[idx])) {
-          result[result.length] = list[idx];
+          // all these types can utilise Set
+          case 'string':
+          case 'boolean':
+          case 'function':
+          case 'undefined':
+            return list.indexOf(a, idx);
+
+          case 'object':
+            if (a === null) {
+              // null can utilise Set
+              return list.indexOf(a, idx);
+            }
+        }
+      }
+      // anything else not covered above, defer to R.equals
+      while (idx < list.length) {
+        if (equals(list[idx], a)) {
+          return idx;
         }
         idx += 1;
       }
-      return result;
+      return -1;
     }
 
-    function _isObject(x) {
-      return Object.prototype.toString.call(x) === '[object Object]';
+    function _includes(a, list) {
+      return _indexOf(list, a, 0) >= 0;
     }
 
-    var XFilter = /*#__PURE__*/function () {
-      function XFilter(f, xf) {
+    /**
+     * Returns `true` if the specified value is equal, in [`R.equals`](#equals)
+     * terms, to at least one element of the given list; `false` otherwise.
+     * Works also with strings.
+     *
+     * @func
+     * @memberOf R
+     * @since v0.1.0
+     * @category List
+     * @sig a -> [a] -> Boolean
+     * @param {Object} a The item to compare against.
+     * @param {Array} list The array to consider.
+     * @return {Boolean} `true` if an equivalent item is in the list, `false` otherwise.
+     * @see R.includes
+     * @deprecated since v0.26.0
+     * @example
+     *
+     *      R.contains(3, [1, 2, 3]); //=> true
+     *      R.contains(4, [1, 2, 3]); //=> false
+     *      R.contains({ name: 'Fred' }, [{ name: 'Fred' }]); //=> true
+     *      R.contains([42], [[42]]); //=> true
+     *      R.contains('ba', 'banana'); //=>true
+     */
+    var contains$1 = /*#__PURE__*/_curry2(_includes);
+
+    /**
+     * Returns `true` if one or both of its arguments are `true`. Returns `false`
+     * if both arguments are `false`.
+     *
+     * @func
+     * @memberOf R
+     * @since v0.1.0
+     * @category Logic
+     * @sig a -> b -> a | b
+     * @param {Any} a
+     * @param {Any} b
+     * @return {Any} the first argument if truthy, otherwise the second argument.
+     * @see R.either
+     * @example
+     *
+     *      R.or(true, true); //=> true
+     *      R.or(true, false); //=> true
+     *      R.or(false, true); //=> true
+     *      R.or(false, false); //=> false
+     */
+    var or = /*#__PURE__*/_curry2(function or(a, b) {
+      return a || b;
+    });
+
+    var XFind = /*#__PURE__*/function () {
+      function XFind(f, xf) {
         this.xf = xf;
         this.f = f;
+        this.found = false;
       }
-      XFilter.prototype['@@transducer/init'] = _xfBase.init;
-      XFilter.prototype['@@transducer/result'] = _xfBase.result;
-      XFilter.prototype['@@transducer/step'] = function (result, input) {
-        return this.f(input) ? this.xf['@@transducer/step'](result, input) : result;
+      XFind.prototype['@@transducer/init'] = _xfBase.init;
+      XFind.prototype['@@transducer/result'] = function (result) {
+        if (!this.found) {
+          result = this.xf['@@transducer/step'](result, void 0);
+        }
+        return this.xf['@@transducer/result'](result);
+      };
+      XFind.prototype['@@transducer/step'] = function (result, input) {
+        if (this.f(input)) {
+          this.found = true;
+          result = _reduced(this.xf['@@transducer/step'](result, input));
+        }
+        return result;
       };
 
-      return XFilter;
+      return XFind;
     }();
 
-    var _xfilter = /*#__PURE__*/_curry2(function _xfilter(f, xf) {
-      return new XFilter(f, xf);
+    var _xfind = /*#__PURE__*/_curry2(function _xfind(f, xf) {
+      return new XFind(f, xf);
     });
 
     /**
-     * Takes a predicate and a `Filterable`, and returns a new filterable of the
-     * same type containing the members of the given filterable which satisfy the
-     * given predicate. Filterable objects include plain objects or any object
-     * that has a filter method such as `Array`.
+     * Returns the first element of the list which matches the predicate, or
+     * `undefined` if no element matches.
      *
-     * Dispatches to the `filter` method of the second argument, if present.
+     * Dispatches to the `find` method of the second argument, if present.
      *
      * Acts as a transducer if a transformer is given in list position.
      *
@@ -1430,29 +1345,53 @@
      * @memberOf R
      * @since v0.1.0
      * @category List
-     * @sig Filterable f => (a -> Boolean) -> f a -> f a
-     * @param {Function} pred
-     * @param {Array} filterable
-     * @return {Array} Filterable
-     * @see R.reject, R.transduce, R.addIndex
+     * @sig (a -> Boolean) -> [a] -> a | undefined
+     * @param {Function} fn The predicate function used to determine if the element is the
+     *        desired one.
+     * @param {Array} list The array to consider.
+     * @return {Object} The element found, or `undefined`.
+     * @see R.transduce
      * @example
      *
-     *      const isEven = n => n % 2 === 0;
-     *
-     *      R.filter(isEven, [1, 2, 3, 4]); //=> [2, 4]
-     *
-     *      R.filter(isEven, {a: 1, b: 2, c: 3, d: 4}); //=> {b: 2, d: 4}
+     *      const xs = [{a: 1}, {a: 2}, {a: 3}];
+     *      R.find(R.propEq('a', 2))(xs); //=> {a: 2}
+     *      R.find(R.propEq('a', 4))(xs); //=> undefined
      */
-    var filter = /*#__PURE__*/_curry2( /*#__PURE__*/_dispatchable(['filter'], _xfilter, function (pred, filterable) {
-      return _isObject(filterable) ? _reduce(function (acc, key) {
-        if (pred(filterable[key])) {
-          acc[key] = filterable[key];
+    var find = /*#__PURE__*/_curry2( /*#__PURE__*/_dispatchable(['find'], _xfind, function find(fn, list) {
+      var idx = 0;
+      var len = list.length;
+      while (idx < len) {
+        if (fn(list[idx])) {
+          return list[idx];
         }
-        return acc;
-      }, {}, keys(filterable)) :
-      // else
-      _filter(pred, filterable);
+        idx += 1;
+      }
     }));
+
+    /**
+     * Returns `true` if the first argument is less than the second; `false`
+     * otherwise.
+     *
+     * @func
+     * @memberOf R
+     * @since v0.1.0
+     * @category Relation
+     * @sig Ord a => a -> a -> Boolean
+     * @param {*} a
+     * @param {*} b
+     * @return {Boolean}
+     * @see R.gt
+     * @example
+     *
+     *      R.lt(2, 1); //=> false
+     *      R.lt(2, 2); //=> false
+     *      R.lt(2, 3); //=> true
+     *      R.lt('a', 'z'); //=> true
+     *      R.lt('z', 'a'); //=> false
+     */
+    var lt = /*#__PURE__*/_curry2(function lt(a, b) {
+      return a < b;
+    });
 
     /**
      * Returns `true` if the specified object property is equal, in
@@ -1481,6 +1420,30 @@
      */
     var propEq = /*#__PURE__*/_curry3(function propEq(name, val, obj) {
       return equals(val, obj[name]);
+    });
+
+    /**
+     * Returns a copy of the list, sorted according to the comparator function,
+     * which should accept two values at a time and return a negative number if the
+     * first value is smaller, a positive number if it's larger, and zero if they
+     * are equal. Please note that this is a **copy** of the list. It does not
+     * modify the original.
+     *
+     * @func
+     * @memberOf R
+     * @since v0.1.0
+     * @category List
+     * @sig ((a, a) -> Number) -> [a] -> [a]
+     * @param {Function} comparator A sorting function :: a -> b -> Int
+     * @param {Array} list The list to sort
+     * @return {Array} a new array with its elements sorted by the comparator function.
+     * @example
+     *
+     *      const diff = function(a, b) { return a - b; };
+     *      R.sort(diff, [4,2,7,5]); //=> [2, 4, 5, 7]
+     */
+    var sort = /*#__PURE__*/_curry2(function sort(comparator, list) {
+      return Array.prototype.slice.call(list, 0).sort(comparator);
     });
 
     function createCommonjsModule(fn, module) {
@@ -1550,103 +1513,205 @@
     });
     var tapBrowserColor_1 = tapBrowserColor.colors;
 
-    const stars = [
-      { first: 'elvis', last: 'presley', alive: false },
-      { first: 'jim', last: 'morrison', alive: false },
-      { first: 'bob', last: 'dylan', alive: true },
-      { first: 'buddy', last: 'holly', alive: false }
-    ];
+    /**
+     * Level 6
+     *
+     * Ramda all the things
+     */
 
+    /**
+     * Level 6 - Challenge 1
+     *
+     * find - applies a function to each element of an array and returns the first element for which the function returns a truthy value.
+     *
+     * you have a deck of cards, the cards is a property on the deck object.
+     * you can inspect the shape of the cards object by doing a console.log(JSON.stringify(___, null, 2))
+     *
+     * Challenge:
+     *   Use the find function to find the Ace of Clubs and return that card to the
+     *   caller.
+     *
+     *   HINT: a common mapper method is obj => obj.property = 'somevalue' -
+     *   this function is used so often there is a function in ramda that makes this
+     *   easier to implement called propEq
+     *
+     *   http://ramdajs.com/docs/#propEq
+     *
+     *   (See if you can use propEq in this challenge)
+     */
+    const challenge1 = deck => {
+      const { cards } = deck;
+      let aceOfClubs = find(propEq("code", "AC"))(cards);
+      console.log(JSON.stringify(deck.cards[0], null, 2));
+      console.log(JSON.stringify(aceOfClubs, null, 2));
+      return aceOfClubs;
+    };
 
-    const fullname = name => ({fullname: `${prop('first', name)} ${prop('last', name)}`});
+    /** Level 6 = Challenge 2
+     *
+     * Challenge:
+     *   Find all of the one eyed royals and suicide king
+     *   then transfrom the obects to array of card images
+     *   finally just a string of images.
+     *
+     *  HINT: break down everything into smaller pieces
+     *
+     * http://ramdajs.com/docs/#anypass
+     * http://ramdajs.com/docs/#propEq
+     * http://ramdajs.com/docs/#join
+     * http://ramdajs.com/docs/#path
+     *
+     */
+    const challenge2 = deck => {
+      return null;
+    };
 
-    /* Level 3 - rockstars */
+    /** level 6 - Challenge 3
+     *
+     * Challenge:
 
-    function level3() {
-      const ex1 =
-        'Use map to transform list of rockstar first,last name objects to objects with fullname';
-      const exercise1 = _ => {
-        const mappedStars = map(fullname, stars);
-        console.log(mappedStars);
-        return mappedStars
-      };
+     * Build a Full House in one Reduce
+     *
+     * Using reduce iterate through the cards and
+     *   create a full house, which means
+     *   three of the cards have to be the same value
+     *   and two of  the cards have be the same value
+     *   for a total of 5 cards.
+     *
+     * You can pick your on fullhouse then call validate
+     *
+     *  const hand = ['3S', '3H', '3C', 'AH', 'AS']
+     *  use reduce to create an array of cards
+     *  then use validate to check your work
+     *  validate(result, hand)
+     *
+     *  Check out contains, prop, append, always, ifElse from ramdajs
+     */
+    const challenge3 = (deck, validate) => {
+      const correcthand = ["3S", "3H", "3C", "AH", "AS"]; // create your own
+      const myhand = []; // add your code here
+      validate(myhand, correcthand);
+    };
 
+    /**
+     * Level 6 - Challenge 4
+     *
+     * 52 Card Pickup
+     *
+     * Challenge, given a deck of card use the ramda sort and prop
+     * functions to put the cards in order by the code prop.
+     *
+     */
+    const challenge4 = deck => {
+      return false;
+    };
 
+    var level6 = () => {
+      fetch("https://deckofcardsapi.com/api/deck/new/draw/?count=52")
+        .then(res => res.json())
+        .then(results => {
+          const deck = results;
+          test("Level 6 - Challenge 1", t => {
+            t.deepequals(challenge1(deck), {
+              suit: "CLUBS",
+              value: "ACE",
+              images: {
+                svg: "https://deckofcardsapi.com/static/img/AC.svg",
+                png: "https://deckofcardsapi.com/static/img/AC.png"
+              },
+              image: "https://deckofcardsapi.com/static/img/AC.png",
+              code: "AC"
+            });
+          });
 
+          test("Level 6 - Challenge 2", t => {
+            const results = challenge2();
 
+            t.ok(contains$1("img/KH", or(results, "")));
+            t.ok(contains$1(`img/KD`, or(results, "")));
+            t.ok(contains$1(`img/JH`, or(results, "")));
+            t.ok(contains$1(`img/JS`, or(results, "")));
+          });
 
+          test("Level 6 - Challenge 3", t => {
+            const desc = (a, b) => (lt(a, b) ? -1 : 1);
+            challenge3(deck, (actualHand, correctHand) => {
+              t.deepequals(
+                sort(desc, pluck("code", actualHand)),
+                sort(desc, correctHand)
+              );
+            });
+          });
 
-      const ex2 = 'Use filter to filter list of rockstars that are still alive';
-      const exercise2 = _ => {
-        const alive = propEq('alive', true);
-        const filterAlive = filter(alive, stars);
-        console.log(filterAlive);
-        return filterAlive
-      };
-
-
-
-
-
-
-      const ex3 =
-        'Use reduce and count the number of stars that are no longer living';
-      const exercise3 = _ => {
-        const whoIsDead = reduce((acc, item) => item.alive === false ? acc + 1 : acc, 0, stars);
-        return whoIsDead
-      };
-
-
-
-
-
-
-      const ex4 =
-        'Use map, filter and reduce with compose show a concatenated string of the fullnames of each alive star';
-      const exercise4 = _ => {
-      
-      
-        const filterer = filter(propEq('alive', true));
-        const mapper = map(fullname);
-
-        const reducer = reduce((acc, val) => prop('fullname', val), []);
-
-        const composer = compose(reducer, mapper, filterer);
-        return composer(stars)
-      };
-
-      /* tests to validate exercises go here */
-      test('Level 3', assert => {
-        assert.deepequals(
-          exercise1(),
-          [
-            { fullname: 'elvis presley' },
-            { fullname: 'jim morrison' },
-            { fullname: 'bob dylan' },
-            { fullname: 'buddy holly' }
-          ],
-          ex1
-        );
-
-        assert.deepequals(
-          exercise2(),
-          [{ first: 'bob', last: 'dylan', alive: true }],
-          ex2
-        );
-        assert.equal(exercise3(), 3, ex3);
-        assert.equal(exercise4(), 'bob dylan', ex4);
-      });
-    }
+          test("Level 6 - Challenge 4", t => {
+            const actual = pluck("code", challenge4());
+            t.deepequals(actual, [
+              "0C",
+              "0D",
+              "0H",
+              "0S",
+              "2C",
+              "2D",
+              "2H",
+              "2S",
+              "3C",
+              "3D",
+              "3H",
+              "3S",
+              "4C",
+              "4D",
+              "4H",
+              "4S",
+              "5C",
+              "5D",
+              "5H",
+              "5S",
+              "6C",
+              "6D",
+              "6H",
+              "6S",
+              "7C",
+              "7D",
+              "7H",
+              "7S",
+              "8C",
+              "8D",
+              "8H",
+              "8S",
+              "9C",
+              "9D",
+              "9H",
+              "9S",
+              "AC",
+              "AD",
+              "AH",
+              "AS",
+              "JC",
+              "JD",
+              "JH",
+              "JS",
+              "KC",
+              "KD",
+              "KH",
+              "KS",
+              "QC",
+              "QD",
+              "QH",
+              "QS"
+            ]);
+          });
+        });
+    };
 
     assert.deepequals = (a, b, msg) => {
       assert.ok(equals(a, b), msg);
     };
     // levelExtra()
     // level7()
-    // level6()
-    // level5()
-    // level4()
-    level3();
+    level6();
+    // level5();
+    // level4();
+    // level3();
     //level2();
     //level1()
 

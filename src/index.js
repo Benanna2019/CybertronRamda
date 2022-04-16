@@ -16,10 +16,10 @@ assert.deepequals = (a, b, msg) => {
 };
 // levelExtra()
 // level7()
-// level6()
-// level5()
-// level4()
-level3()
+level6();
+// level5();
+// level4();
+// level3();
 //level2();
 //level1()
 

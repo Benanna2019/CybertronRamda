@@ -1,9 +1,27 @@
-import { or, contains, find, propEq, compose, map, filter, 
-  anyPass, join, path, reduce, append, __, ifElse, prop, 
-  always, sort, lt, pluck }  from 'ramda'
+import {
+  or,
+  contains,
+  find,
+  propEq,
+  compose,
+  map,
+  filter,
+  anyPass,
+  join,
+  path,
+  reduce,
+  append,
+  __,
+  ifElse,
+  prop,
+  always,
+  sort,
+  lt,
+  pluck
+} from "ramda";
 
 //import fetch from 'isomorphic-fetch'
-import { test } from 'tape-modern'
+import { test } from "tape-modern";
 
 /**
  * Level 6
@@ -16,8 +34,8 @@ import { test } from 'tape-modern'
  *
  * find - applies a function to each element of an array and returns the first element for which the function returns a truthy value.
  *
- * you hae a deck of cards, the cards is a property on the deck object.
- * you can inpect the shape of the cards object by doing a console.log(JSON.stringify(___, null, 2))
+ * you have a deck of cards, the cards is a property on the deck object.
+ * you can inspect the shape of the cards object by doing a console.log(JSON.stringify(___, null, 2))
  *
  * Challenge:
  *   Use the find function to find the Ace of Clubs and return that card to the
@@ -32,10 +50,12 @@ import { test } from 'tape-modern'
  *   (See if you can use propEq in this challenge)
  */
 const challenge1 = deck => {
-  // show card object
-  // console.log(JSON.stringify(deck.cards[0], null, 2))
-  return null
-}
+  const { cards } = deck;
+  let aceOfClubs = find(propEq("code", "AC"))(cards);
+  console.log(JSON.stringify(deck.cards[0], null, 2));
+  console.log(JSON.stringify(aceOfClubs, null, 2));
+  return aceOfClubs;
+};
 
 /** Level 6 = Challenge 2
  *
@@ -53,9 +73,8 @@ const challenge1 = deck => {
  *
  */
 const challenge2 = deck => {
-
-  return null
-}
+  return null;
+};
 
 /** level 6 - Challenge 3
  *
@@ -79,10 +98,10 @@ const challenge2 = deck => {
  *  Check out contains, prop, append, always, ifElse from ramdajs
  */
 const challenge3 = (deck, validate) => {
-  const correcthand = ['3S', '3H', '3C', 'AH', 'AS'] // create your own
-  const myhand = [] // add your code here
-  validate(myhand, correcthand)
-}
+  const correcthand = ["3S", "3H", "3C", "AH", "AS"]; // create your own
+  const myhand = []; // add your code here
+  validate(myhand, correcthand);
+};
 
 /**
  * Level 6 - Challenge 4
@@ -94,103 +113,102 @@ const challenge3 = (deck, validate) => {
  *
  */
 const challenge4 = deck => {
-  return false 
-}
+  return false;
+};
 
 export default () => {
-  fetch('https://deckofcardsapi.com/api/deck/new/draw/?count=52')
+  fetch("https://deckofcardsapi.com/api/deck/new/draw/?count=52")
     .then(res => res.json())
     .then(results => {
-      const deck = results
-      test('Level 6 - Challenge 1', t => {
+      const deck = results;
+      test("Level 6 - Challenge 1", t => {
         t.deepequals(challenge1(deck), {
-          suit: 'CLUBS',
-          value: 'ACE',
+          suit: "CLUBS",
+          value: "ACE",
           images: {
-            svg: 'https://deckofcardsapi.com/static/img/AC.svg',
-            png: 'https://deckofcardsapi.com/static/img/AC.png'
+            svg: "https://deckofcardsapi.com/static/img/AC.svg",
+            png: "https://deckofcardsapi.com/static/img/AC.png"
           },
-          image: 'https://deckofcardsapi.com/static/img/AC.png',
-          code: 'AC'
-        })
-      })
+          image: "https://deckofcardsapi.com/static/img/AC.png",
+          code: "AC"
+        });
+      });
 
-      test('Level 6 - Challenge 2', t => {
-        
-        const results = challenge2(deck)
+      test("Level 6 - Challenge 2", t => {
+        const results = challenge2(deck);
 
-        t.ok(contains('img/KH', or(results, '')))
-        t.ok(contains(`img/KD`, or(results, '')))
-        t.ok(contains(`img/JH`, or(results, '')))
-        t.ok(contains(`img/JS`, or(results, '')))
-      })
+        t.ok(contains("img/KH", or(results, "")));
+        t.ok(contains(`img/KD`, or(results, "")));
+        t.ok(contains(`img/JH`, or(results, "")));
+        t.ok(contains(`img/JS`, or(results, "")));
+      });
 
-      test('Level 6 - Challenge 3', t => {
-        const desc = (a, b) => (lt(a, b) ? -1 : 1)
+      test("Level 6 - Challenge 3", t => {
+        const desc = (a, b) => (lt(a, b) ? -1 : 1);
         challenge3(deck, (actualHand, correctHand) => {
           t.deepequals(
-            sort(desc, pluck('code', actualHand)),
+            sort(desc, pluck("code", actualHand)),
             sort(desc, correctHand)
-          )
-        })
-      })
+          );
+        });
+      });
 
-      test('Level 6 - Challenge 4', t => {
-        const actual = pluck('code', challenge4(deck))
+      test("Level 6 - Challenge 4", t => {
+        const actual = pluck("code", challenge4(deck));
         t.deepequals(actual, [
-          '0C',
-          '0D',
-          '0H',
-          '0S',
-          '2C',
-          '2D',
-          '2H',
-          '2S',
-          '3C',
-          '3D',
-          '3H',
-          '3S',
-          '4C',
-          '4D',
-          '4H',
-          '4S',
-          '5C',
-          '5D',
-          '5H',
-          '5S',
-          '6C',
-          '6D',
-          '6H',
-          '6S',
-          '7C',
-          '7D',
-          '7H',
-          '7S',
-          '8C',
-          '8D',
-          '8H',
-          '8S',
-          '9C',
-          '9D',
-          '9H',
-          '9S',
-          'AC',
-          'AD',
-          'AH',
-          'AS',
-          'JC',
-          'JD',
-          'JH',
-          'JS',
-          'KC',
-          'KD',
-          'KH',
-          'KS',
-          'QC',
-          'QD',
-          'QH',
-          'QS'
-        ])
-      })
-    })
-}
+          "0C",
+          "0D",
+          "0H",
+          "0S",
+          "2C",
+          "2D",
+          "2H",
+          "2S",
+          "3C",
+          "3D",
+          "3H",
+          "3S",
+          "4C",
+          "4D",
+          "4H",
+          "4S",
+          "5C",
+          "5D",
+          "5H",
+          "5S",
+          "6C",
+          "6D",
+          "6H",
+          "6S",
+          "7C",
+          "7D",
+          "7H",
+          "7S",
+          "8C",
+          "8D",
+          "8H",
+          "8S",
+          "9C",
+          "9D",
+          "9H",
+          "9S",
+          "AC",
+          "AD",
+          "AH",
+          "AS",
+          "JC",
+          "JD",
+          "JH",
+          "JS",
+          "KC",
+          "KD",
+          "KH",
+          "KS",
+          "QC",
+          "QD",
+          "QH",
+          "QS"
+        ]);
+      });
+    });
+};
